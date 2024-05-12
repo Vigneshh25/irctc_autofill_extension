@@ -57,6 +57,7 @@ function loadLoginDetails() {
 	const captchaInput = loginModal.querySelector(
 		"input[type='text'][formcontrolname='captcha']"
 	);
+    captchaInput.className = 'payment_tex ng-valid ng-dirty ng-touched';
 
 
 	captchaInput.addEventListener("mouseenter", function() {
@@ -128,6 +129,8 @@ function performOCRAndSetInput(imageUrl) {
             const captchaInput = document.getElementById("captcha");
             if (captchaInput) {
                 captchaInput.value = extractedText;
+                const event = new Event('input', { bubbles: true });
+                captchaInput.dispatchEvent(event);
             } else {
                 console.error("Captcha input element not found");
             }
@@ -545,11 +548,11 @@ function continueBooking(continueButton) {
 			clearInterval(urlCheckInterval); // Stop further checking
 			handleReviewBooking();
 		}
-	}, 1000);
+	}, 500);
 }
 
 function handleReviewBooking() {
-	const reviewBookingComponent = document.querySelector('#divMain > div > app-review-booking');
+	const reviewBookingComponent = document.querySelector('app-review-booking');
 	if (reviewBookingComponent) {
 		console.log('Found app-review-booking component:', reviewBookingComponent);
 		focusCaptchaInput(reviewBookingComponent);
@@ -559,10 +562,12 @@ function handleReviewBooking() {
 }
 
 function focusCaptchaInput(reviewBookingComponent) {
-	const captchaInput = reviewBookingComponent.querySelector('input#captcha');
-	if (captchaInput) {
-		captchaInput.focus();
-		captchaInput.addEventListener("mouseenter", function() {
+        const captchaInput = reviewBookingComponent.querySelector('input#captcha');
+        if (captchaInput) {
+            captchaInput.className = 'payment_tex ng-valid ng-dirty ng-touched'; // Set the class name
+            captchaInput.focus();
+		    console.log('Successfully focused on CAPTCHA input:', captchaInput);
+            captchaInput.addEventListener("mouseenter", function() {
             const captcha = document.querySelector(".captcha-img").src;
             console.log("src ::",captcha);
             if (captcha == null) {
@@ -571,10 +576,9 @@ function focusCaptchaInput(reviewBookingComponent) {
                 performOCRAndSetInputForReview(captcha);
             }
         });
-		console.log('Successfully focused on CAPTCHA input:', captchaInput);
 		waitForPaymentOptions();
 	} else {
-		console.warn('CAPTCHA input not found within app-review-booking component');
+		console.error('CAPTCHA input not found within app-review-booking component');
 	}
 }
 
@@ -584,20 +588,13 @@ function performOCRAndSetInputForReview(imageUrl) {
     const apiKey = "K88263110488957";
     const apiUrl = "https://api.ocr.space/parse/image";
 
-    // Fetch the image file and send OCR request
     fetch(imageUrl)
         .then(response => {
-            if (!response.ok) {
-                throw new Error("Failed to fetch image file");
-            }
             return response.blob();
         })
         .then(blob => {
             console.log("Image file fetched successfully");
-
-            // Create a File object from the blob
             const file = new File([blob], "captcha_image.png", { type: blob.type });
-
             const formData = new FormData();
             formData.append("language", "eng");
             formData.append("isOverlayRequired", "true");
@@ -626,20 +623,20 @@ function performOCRAndSetInputForReview(imageUrl) {
                 throw new Error("OCR processing error");
             }
 
-            // Extracted text from OCR response
             const extractedText = data.ParsedResults[0].ParsedText.trim();
             console.log("Extracted text from OCR:", extractedText);
 
-            // Set extracted text to captcha input element
             const captchaInput = document.getElementById("captcha");
             if (captchaInput) {
-            captchaInput.value = extractedText + 'a'; // Add 'a' to the end of the text
-            console.log("Text set to captcha input:", extractedText + 'a');
-
-            setTimeout(() => {
-                captchaInput.value = extractedText;
-                console.log("Text reverted to:", extractedText);
-            }, 1000);
+            captchaInput.value = extractedText;
+            const event = new Event('input', { bubbles: true });
+            captchaInput.dispatchEvent(event);
+            const button = document.querySelector('button.btnDefault.train_Search');
+            if (button) {
+                button.focus();
+            } else {
+                console.error('Button not found.');
+            }
         } else {
             console.error("Captcha input element not found");
         }
@@ -648,11 +645,6 @@ function performOCRAndSetInputForReview(imageUrl) {
             console.error("Error during OCR process:", error);
         });
 }
-
-// Example usage:
-const imageUrl = "/home/admin/Downloads/captcha_image.png";
-performOCRAndSetInputForReview(imageUrl);
-
 
 function waitForPaymentOptions() {
 	const targetPaymentOptionsURL = 'https://www.irctc.co.in/nget/payment/bkgPaymentOptions';
