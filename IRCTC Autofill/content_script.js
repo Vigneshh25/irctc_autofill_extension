@@ -669,7 +669,7 @@ function handlePaymentOptions() {
 function selectPaymentOption(paymentOptionsComponent) {
 	const payTypeContainer = document.querySelector('#pay-type');
 	if (payTypeContainer) {
-		const multiplePaymentServiceDiv = payTypeContainer.querySelector('div.bank-type:nth-child(2)');
+		const multiplePaymentServiceDiv = payTypeContainer.querySelector('div.bank-type:nth-child(3)');
 		if (multiplePaymentServiceDiv) {
 			multiplePaymentServiceDiv.click();
 			console.log('Clicked on Multiple Payment Service option');
@@ -678,7 +678,7 @@ function selectPaymentOption(paymentOptionsComponent) {
 			if (paymentOptionsTable) {
 				const paymentOptionDiv = Array.from(paymentOptionsTable.querySelectorAll('div.bank-text')).find((div) => {
 					const textContent = div.textContent.trim();
-					return textContent.includes('Credit & Debit cards / Net Banking / Wallet / UPI (Powered by Paytm)');
+					return textContent.includes('Pay using BHIM (Powered by PAYTM ) also accepts UPI');
 				});
 
 				if (paymentOptionDiv) {
