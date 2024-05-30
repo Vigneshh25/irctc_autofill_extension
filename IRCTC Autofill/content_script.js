@@ -1,16 +1,5 @@
 let user_data = {};
 
-function getMsg(msg_type, msg_body) {
-	return {
-		msg: {
-			type: msg_type,
-			data: msg_body,
-		},
-		sender: "content_script",
-		id: "irctc",
-	};
-}
-
 function statusUpdate(status) {
 	chrome.runtime.sendMessage(
 		getMsg("status_update", {
@@ -21,26 +10,53 @@ function statusUpdate(status) {
 }
 
 function addDelay(milliseconds) {
-	const date = Date.now();
-	let currentDate = null;
-	do {
-		currentDate = Date.now();
-	} while (currentDate - date < milliseconds);
+    console.log(`Starting delay of ${milliseconds} milliseconds...`);
+    const date = Date.now();
+    let currentDate = null;
+    do {
+        currentDate = Date.now();
+    } while (currentDate - date < milliseconds);
+    console.log(`Delay completed. Elapsed time: ${currentDate - date} milliseconds.`);
 }
 
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	console.log(message, sender, "content_script");
-	if (message.id !== "irctc") {
-		sendResponse("Invalid Id");
-		return;
-	}
-	const type = message.msg.type;
-	if (type === "selectJourney") {
-		selectJourney();
-	} else if (type === "fillPassengerDetails") {
-		fillPassengerDetails();
-	}
-	sendResponse("Something went wrong");
+    console.log(message, sender, "content_script"); // Log the incoming message and sender details
+
+    if (message.id !== "irctc") {
+        console.log("Invalid Id received. Sending response...");
+        sendResponse("Invalid Id");
+        return;
+    }
+
+    const type = message.msg.type;
+
+    if (type === "selectJourney") {
+        console.log("Received message to select journey...");
+        const targetURL = 'https://www.irctc.co.in/nget/booking/train-list';
+        const urlCheckInterval = setInterval(() => {
+            console.log("Checking current URL for target: " + targetURL);
+            if (document.URL === targetURL) {
+                clearInterval(urlCheckInterval); // Stop further checking
+                console.log("Target URL reached. Executing selectJourney...");
+//                selectJourney();
+            }
+        }, 500);
+    } else if (type === "fillPassengerDetails") {
+        console.log("Received message to fill passenger details...");
+        const targetURL = 'https://www.irctc.co.in/nget/booking/psgninput';
+        const urlCheckInterval = setInterval(() => {
+            console.log("Checking current URL for target: " + targetURL);
+            if (document.URL === targetURL) {
+                clearInterval(urlCheckInterval); // Stop further checking
+                console.log("Target URL reached. Executing fillPassengerDetails...");
+//                fillPassengerDetails();
+            }
+        }, 500);
+    } else {
+        console.log("Invalid message type received. Sending response...");
+        sendResponse("Invalid message type");
+    }
 });
 
 function loadLoginDetails() {
@@ -96,9 +112,8 @@ function performOCRAndSetInput(imageUrl) {
             formData.append("language", "eng");
             formData.append("isOverlayRequired", "true");
             formData.append("file", file);
+            formData.append("OCREngine", "2");
 
-            console.log("Sending OCR request to:", apiUrl);
-            console.log("Request body (FormData):", formData);
 
             // Send the OCR request using fetch
             return fetch(apiUrl, {
@@ -143,79 +158,129 @@ function performOCRAndSetInput(imageUrl) {
 
 
 function loadJourneyDetails() {
-	statusUpdate("filling_journey_details");
-	const form = document.querySelector("app-jp-input form");
-	const fromInputField = form.querySelector("#origin > span > input");
-	fromInputField.value = user_data["journey_details"]["from"] ?
-		`${user_data["journey_details"]["from"]["english_label"]} - ${user_data["journey_details"]["from"]["station_code"]}` :
-		"";
-	fromInputField.dispatchEvent(new Event("keydown"));
-	fromInputField.dispatchEvent(new Event("input"));
+    console.log("Loading journey details...");
+    statusUpdate("filling_journey_details");
 
-	const destinationInputField = form.querySelector(
-		"#destination > span > input"
-	);
-	destinationInputField.value = user_data["journey_details"]["destination"] ?
-		`${user_data["journey_details"]["destination"]["english_label"]} - ${user_data["journey_details"]["destination"]["station_code"]}` :
-		"";
-	destinationInputField.dispatchEvent(new Event("keydown"));
-	destinationInputField.dispatchEvent(new Event("input"));
+    const form = document.querySelector("app-jp-input form");
+    console.log("Form element found:", form);
 
-	const dateInputField = form.querySelector("#jDate > span > input");
-	dateInputField.value = user_data["journey_details"]["date"] ?
-		`${user_data["journey_details"]["date"].split("-").reverse().join("/")}` :
-		"";
-	dateInputField.dispatchEvent(new Event("keydown"));
-	dateInputField.dispatchEvent(new Event("input"));
+    const fromInputField = form.querySelector("#origin > span > input");
+    const fromStation =
+        user_data["journey_details"]["from"] ?
+        `${user_data["journey_details"]["from"]["english_label"]} - ${user_data["journey_details"]["from"]["station_code"]}` :
+        "";
+    console.log("Setting 'From' input field:", fromStation);
+    fromInputField.value = fromStation;
+    fromInputField.dispatchEvent(new Event("keydown"));
+    fromInputField.dispatchEvent(new Event("input"));
 
-	const jClassField = form.querySelector("#journeyClass");
-	const jClassArrowBtn = jClassField.querySelector("div > div[role='button']");
-	jClassArrowBtn.click();
-	[...jClassField.querySelectorAll("ul li")]
-	.filter(
-			(e) =>
-			e.innerText === user_data["journey_details"]["class"]["label"] ?? ""
-		)[0]
-		?.click(); //handle error here
+    const destinationInputField = form.querySelector("#destination > span > input");
+    const destinationStation =
+        user_data["journey_details"]["destination"] ?
+        `${user_data["journey_details"]["destination"]["english_label"]} - ${user_data["journey_details"]["destination"]["station_code"]}` :
+        "";
+    console.log("Setting 'Destination' input field:", destinationStation);
+    destinationInputField.value = destinationStation;
+    destinationInputField.dispatchEvent(new Event("keydown"));
+    destinationInputField.dispatchEvent(new Event("input"));
 
-	const quotaField = form.querySelector("#journeyQuota");
-	const quotaArrowBtn = quotaField.querySelector("div > div[role='button']");
-	quotaArrowBtn.click();
-	[...quotaField.querySelectorAll("ul li")]
-	.filter(
-			(e) =>
-			e.innerText === user_data["journey_details"]["quota"]["label"] ?? ""
-		)[0]
-		?.click(); //handle error here
+    const dateInputField = form.querySelector("#jDate > span > input");
+    const formattedDate =
+        user_data["journey_details"]["date"] ?
+        `${user_data["journey_details"]["date"].split("-").reverse().join("/")}` :
+        "";
+    console.log("Setting 'Date' input field:", formattedDate);
+    dateInputField.value = formattedDate;
+    dateInputField.dispatchEvent(new Event("keydown"));
+    dateInputField.dispatchEvent(new Event("input"));
 
-	const searchBtn = form.querySelector(
-		"button.search_btn.train_Search[type='submit']"
-	);
-	statusUpdate("filled_journey_details");
+    const jClassField = form.querySelector("#journeyClass");
+    const jClassArrowBtn = jClassField.querySelector("div > div[role='button']");
+    console.log("Clicking on journey class dropdown...");
+    jClassArrowBtn.click();
+    const desiredJourneyClass = user_data["journey_details"]["class"]["label"];
+    console.log("Selecting journey class:", desiredJourneyClass);
+    [...jClassField.querySelectorAll("ul li")]
+        .filter((e) => e.innerText === desiredJourneyClass ?? "")
+        [0]?.click(); //handle error here
 
-	if (
-		user_data["journey_details"]["quota"]["label"] === "TATKAL" ||
-		(user_data["journey_details"]["quota"]["label"] === "PREMIUM TATKAL" &&
-			user_data["extension_data"]["book_at_tatkal_time"] === true)
-	) {
-		const jclass = user_data["journey_details"]["class"]["value"];
-		let currentDate = new Date();
-		let requiredDate = new Date();
-		["1A", "2A", "3A", "CC", "EC", "3E", "SL", "2S"].includes(jclass.toUpperCase()) ?
-			requiredDate.setHours(10, 00, 00, 00) :
-			requiredDate.setHours(11, 00, 00, 00);
+    const quotaField = form.querySelector("#journeyQuota");
+    const quotaArrowBtn = quotaField.querySelector("div > div[role='button']");
+    console.log("Clicking on journey quota dropdown...");
+    quotaArrowBtn.click();
+    const desiredJourneyQuota = user_data["journey_details"]["quota"]["label"];
+    console.log("Selecting journey quota:", desiredJourneyQuota);
+    [...quotaField.querySelectorAll("ul li")]
+        .filter((e) => e.innerText === desiredJourneyQuota ?? "")
+        [0]?.click(); //handle error here
 
-		if (requiredDate > currentDate) {
-			console.log("asdas");
-			setTimeout(() => {
-				searchBtn.click();
-			}, 10);
-		} else {
-			searchBtn.click();
-		}
-	} else {
-		searchBtn.click();
-	}
+    const searchBtn = form.querySelector("button.search_btn.train_Search[type='submit']");
+    console.log("Journey details filled. Proceeding to search...");
+    statusUpdate("filled_journey_details");
+//    searchBtn.click();
+    addDelay(500);
+
+    const targetURL = 'https://www.irctc.co.in/nget/booking/train-list';
+            const urlCheckInterval = setInterval(() =>
+            {
+                console.log("Checking current URL for target: " + targetURL);
+                if (document.URL === targetURL)
+                {
+                    clearInterval(urlCheckInterval); // Stop further checking
+                    console.log("Target URL reached. Executing selectJourney...");
+                    selectJourney();
+                }
+            }, 500);
+
+
+
+    // Conditionally handle booking based on journey quota and class
+//    if (
+//        desiredJourneyQuota === "TATKAL" ||
+//        (desiredJourneyQuota === "PREMIUM TATKAL" &&
+//            user_data["extension_data"]["book_at_tatkal_time"] === true)
+//    )
+//    {
+//        const jclass = user_data["journey_details"]["class"]["value"];
+//        const currentDate = new Date();
+//        const requiredDate = new Date();
+//
+//        // Set required booking time based on journey class
+//        ["1A", "2A", "3A", "CC", "EC", "3E"].includes(jclass.toUpperCase()) ?
+//        requiredDate.setHours(09, 59, 55, 0) :
+//        requiredDate.setHours(10, 41, 55, 0);
+//
+//        console.log("requiredDate :: ",requiredDate);
+//        console.log("currentDate :: ",currentDate);
+//        if (requiredDate > currentDate)
+//        {
+//            const timeDifference = requiredDate.getTime() - currentDate.getTime();
+//            console.log("Booking time has not arrived yet. Waiting to proceed and the timeDifference ",timeDifference);
+//                 searchBtn.click();
+//            setTimeout(() =>
+//            {
+//                 console.log("Triggering search button click after waiting...");
+//            }, timeDifference);
+//        } else
+//        {
+//             console.log("Booking time has already arrived. Triggering search button click immediately...");
+//             searchBtn.click();
+//        }
+//    } else
+//    {
+//         console.log("Conditions not met. Triggering search button click immediately...");
+//         searchBtn.click();
+//    }
+}
+function getMsg(msg_type, msg_body) {
+  return {
+    msg: {
+      type: msg_type,
+      data: msg_body,
+    },
+    sender: "popup",
+    id: "irctc",
+  };
 }
 
 function selectJourney() {
@@ -254,21 +319,37 @@ function selectJourney() {
 		childList: true,
 		subtree: true
 	};
-	[...myTrain.querySelectorAll("table tr td div.pre-avl")]
-	.filter((c) => c.querySelector("div").innerText === jClass)[0]
-		?.click();
+	const preAvlDivs = myTrain.querySelectorAll("table tr td div.pre-avl");
+
+    console.log("Selected elements:", preAvlDivs);
+
+    const targetDiv = [...preAvlDivs].find((div) => {
+        const innerText = div.querySelector("div")?.innerText.trim();
+        return innerText === jClass;
+    });
+
+    if (targetDiv) {
+        console.log("Found element:", targetDiv);
+        targetDiv.click(); // Simulate a click on the found element
+    } else {
+        console.log("No element found for class:", jClass);
+    }
 
 	const fetchAvailableSeatsCallback = (mutationList, observer) => {
 		console.log("fetchAvailableSeatsCallback -1", Date.now());
+        addDelay(800);
 		console.log("fetchAvailableSeatsCallback -2", Date.now());
 		const myClassToClick = [
 			...myTrain.querySelectorAll("table tr td div.pre-avl"),
 		].filter((c) => c.querySelector("div").innerText === jClass)[0];
+		console.log("myClassToClick ::",myClassToClick);
 		const myClassTabToClick = [
 			...myTrain.querySelectorAll(
 				"div p-tabmenu ul[role='tablist'] li[role='tab']"
 			),
 		].filter((c) => c.querySelector("div").innerText === jClass)[0];
+		console.log("myClassTabToClick ::",myClassTabToClick);
+
 		const myClassTabToSelect = [
 			...myTrain.querySelectorAll("div div table td div.pre-avl"),
 		].filter(
@@ -276,35 +357,38 @@ function selectJourney() {
 			c.querySelector("div").innerText ===
 			`${tempDate[0]}, ${tempDate[2]} ${tempDate[1]}`
 		)[0];
+		console.log("myClassTabToSelect ::",myClassTabToSelect);
 
 		const bookBtn = myTrain.querySelector(
 			"button.btnDefault.train_Search.ng-star-inserted"
 		);
 		if (myClassToClick) {
-			console.log(1);
+			console.log("Class element found. Checking selection status...");
 			if (myClassToClick.classList.contains("selected-class")) {
-				console.log(2);
+				console.log("Desired class is already selected.");
 				statusUpdate("journey_selection_completed");
-				bookBtn.click();
+				waitForActiveBookButton(myTrain, config);
 				observer.disconnect();
 			} else {
-				console.log(3);
+				console.log("Selecting the desired class...");
 				myClassToClick.click();
 			}
 		} else if (myClassTabToClick) {
-			console.log(4);
+		    console.log("Class tab element found. Checking tab status...");
 			if (!myClassTabToClick.classList.contains("ui-state-active")) {
-				console.log(5);
+				console.log("Activating the class tab...");
 				myClassTabToClick.click();
 				return;
 			} else if (myClassTabToSelect) {
-				console.log(6);
+				console.log("Date element found within the class tab. Checking selection status...");
 				if (myClassTabToSelect.classList.contains("selected-class")) {
-					console.log(7);
-					bookBtn.click();
+					console.log("Desired date within the class tab is already selected.");
+					addDelay(500);
+					waitForActiveBookButton(myTrain, config);
 					observer.disconnect();
 				} else {
 					console.log(8, Date.now());
+                    addDelay(500);
 					myClassTabToSelect.click();
 					console.log(9, Date.now());
 				}
@@ -313,6 +397,35 @@ function selectJourney() {
 	};
 	const observer = new MutationObserver(fetchAvailableSeatsCallback);
 	observer.observe(myTrain, config);
+	const targetURL = 'https://www.irctc.co.in/nget/booking/psgninput';
+            const urlCheckInterval = setInterval(() => {
+                console.log("Checking current URL for target: " + targetURL);
+                if (document.URL === targetURL) {
+                    clearInterval(urlCheckInterval); // Stop further checking
+                    console.log("Target URL reached. Executing fillPassengerDetails...");
+                    fillPassengerDetails();
+                }
+    }, 500);
+}
+
+function waitForActiveBookButton(myTrain, config) {
+    const bookBtn = myTrain.querySelector("button.btnDefault.train_Search.ng-star-inserted");
+    console.log("bookBtn :: ",bookBtn.className);
+
+    if (bookBtn && bookBtn.classList.contains("disable-book")) {
+        console.log("Book Now button found but disabled. Waiting for enablement...");
+        setTimeout(() => {
+            waitForActiveBookButton(myTrain, config); // Retry after a delay
+        }, 1000); // Retry after 1 second (adjust delay as needed)
+    } else {
+        // Button is enabled, proceed to click
+        if (bookBtn) {
+            console.log("Book Now button is enabled. Proceeding with booking...");
+            bookBtn.click();
+        } else {
+            console.error("Book Now button not found or not enabled.");
+        }
+    }
 }
 
 function fillPassengerDetails() {
@@ -599,8 +712,9 @@ function performOCRAndSetInputForReview(imageUrl) {
             formData.append("language", "eng");
             formData.append("isOverlayRequired", "true");
             formData.append("file", file);
+            formData.append("OCREngine", "2");
+            formData.append("filetype", "jpg");
 
-            console.log("Sending OCR request to:", apiUrl);
 
             return fetch(apiUrl, {
                 method: "POST",
@@ -708,58 +822,71 @@ function selectPaymentOption(paymentOptionsComponent) {
 
 
 function continueScript() {
-	statusUpdate("continue_script");
-	const loginBtn = document.querySelector(
-		"body > app-root > app-home > div.header-fix > app-header > div.col-sm-12.h_container > div.text-center.h_main_div > div.row.col-sm-12.h_head1 > a.search_btn.loginText.ng-star-inserted"
-	);
-	// fill data in respective form at different pages
-	if (window.location.href.includes("train-search")) {
-		if (loginBtn.innerText.trim().toUpperCase() === "LOGOUT") {
-			loadJourneyDetails();
-		}
-		if (loginBtn.innerText.trim().toUpperCase() === "LOGIN") {
-			loginBtn.click();
-			loadLoginDetails();
-		}
-	} else if (window.location.href.includes("nget/booking/train-list")) {
-		console.log("nget/booking/train-list");
-	} else {
-		console.log("No script ahead");
-	}
+    statusUpdate("continue_script");
+    console.log("Continuing script execution...");
+
+    const loginBtn = document.querySelector(
+        "body > app-root > app-home > div.header-fix > app-header > div.col-sm-12.h_container > div.text-center.h_main_div > div.row.col-sm-12.h_head1 > a.search_btn.loginText.ng-star-inserted"
+    );
+
+    // Determine actions based on the current page URL
+    if (window.location.href.includes("train-search")) {
+        // On the train search page
+        if (loginBtn.innerText.trim().toUpperCase() === "LOGOUT") {
+            console.log("User is already logged in. Loading journey details...");
+            loadJourneyDetails();
+        } else if (loginBtn.innerText.trim().toUpperCase() === "LOGIN") {
+            console.log("User needs to log in. Clicking login button...");
+            loginBtn.click();
+            loadLoginDetails();
+        }
+    } else if (window.location.href.includes("nget/booking/train-list")) {
+        // On the train list page
+        console.log("Currently on the train list page...");
+    } else {
+        // On an unexpected page
+        console.log("No script actions defined for the current page.");
+    }
 }
 
-window.onload = function(e) {
-	const loginBtn = document.querySelector(
-		"body > app-root > app-home > div.header-fix > app-header > div.col-sm-12.h_container > div.text-center.h_main_div > div.row.col-sm-12.h_head1 "
-	);
-	const config = {
-		attributes: false,
-		childList: true,
-		subtree: false
-	};
-	const loginDetectorCallback = (mutationList, observer) => {
-		if (
-			mutationList.filter(
-				(m) =>
-				m.type === "childList" &&
-				m.addedNodes.length > 0 && [...m.addedNodes].filter(
-					(n) => n?.innerText?.trim()?.toUpperCase() === "LOGOUT"
-				).length > 0
-			).length > 0
-		) {
-			observer.disconnect();
-			loadJourneyDetails();
-		} else {
-			loginBtn.click();
-			loadLoginDetails();
-		}
-	};
-	const observer = new MutationObserver(loginDetectorCallback);
-	observer.observe(loginBtn, config);
 
-	console.log("Content Script loaded with IRCTC Website");
-	chrome.storage.local.get(null, (result) => {
-		user_data = result;
-		continueScript();
-	});
+window.onload = function(e) {
+    const loginBtn = document.querySelector(
+        "body > app-root > app-home > div.header-fix > app-header > div.col-sm-12.h_container > div.text-center.h_main_div > div.row.col-sm-12.h_head1 "
+    );
+    const config = {
+        attributes: false,
+        childList: true,
+        subtree: false
+    };
+
+    const loginDetectorCallback = (mutationList, observer) => {
+        if (mutationList.filter(
+            (m) =>
+            m.type === "childList" &&
+            m.addedNodes.length > 0 &&
+            [...m.addedNodes].filter(
+                (n) => n?.innerText?.trim()?.toUpperCase() === "LOGOUT"
+            ).length > 0
+        ).length > 0) {
+            observer.disconnect();
+            console.log("Detected logout. Loading journey details...");
+            loadJourneyDetails();
+        } else {
+            loginBtn.click();
+            console.log("Clicked login button...");
+            loadLoginDetails();
+        }
+    };
+
+    const observer = new MutationObserver(loginDetectorCallback);
+    observer.observe(loginBtn, config);
+
+    console.log("Content Script loaded with IRCTC Website");
+
+    chrome.storage.local.get(null, (result) => {
+        user_data = result;
+        console.log("Retrieved user data from local storage:", user_data);
+        continueScript();
+    });
 };
