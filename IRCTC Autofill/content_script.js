@@ -421,7 +421,7 @@ function waitForActiveBookButton(myTrain, config) {
         // Button is enabled, proceed to click
         if (bookBtn) {
             console.log("Book Now button is enabled. Proceeding with booking...");
-            bookBtn.click();
+//            bookBtn.click();
         } else {
             console.error("Book Now button not found or not enabled.");
         }
