@@ -330,7 +330,7 @@ function selectJourney() {
 
     if (targetDiv) {
         console.log("Found element:", targetDiv);
-        targetDiv.click(); // Simulate a click on the found element
+//        targetDiv.click(); // Simulate a click on the found element
     } else {
         console.log("No element found for class:", jClass);
     }
@@ -378,6 +378,18 @@ function selectJourney() {
 			if (!myClassTabToClick.classList.contains("ui-state-active")) {
 				console.log("Activating the class tab...");
 				myClassTabToClick.click();
+				console.log("Date element found within the class tab. Checking selection status...");
+                if (myClassTabToSelect.classList.contains("selected-class")) {
+                    console.log("Desired date within the class tab is already selected.");
+                    addDelay(500);
+                    waitForActiveBookButton(myTrain, config);
+                    observer.disconnect();
+                } else {
+                    console.log(8, Date.now());
+                    addDelay(500);
+                    myClassTabToSelect.click();
+                    console.log(9, Date.now());
+                }
 				return;
 			} else if (myClassTabToSelect) {
 				console.log("Date element found within the class tab. Checking selection status...");
@@ -421,7 +433,7 @@ function waitForActiveBookButton(myTrain, config) {
         // Button is enabled, proceed to click
         if (bookBtn) {
             console.log("Book Now button is enabled. Proceeding with booking...");
-//            bookBtn.click();
+            bookBtn.click();
         } else {
             console.error("Book Now button not found or not enabled.");
         }
@@ -433,11 +445,15 @@ function fillPassengerDetails() {
 	const parentElement = document.querySelector("app-passenger-input");
 	let count = 1;
 	while (count < user_data["passenger_details"].length) {
-		parentElement
-			.querySelector(
-				"#ui-panel-12-content div.zeroPadding.pull-left.ng-star-inserted a span.prenext"
-			)
-			?.click();
+       let dPassengerLink = document.querySelector(
+         ".form-group.col-xs-12.padding.ng-tns-c83-55 .zeroPadding.pull-left.ng-star-inserted a"
+       );
+       if (dPassengerLink) {
+         dPassengerLink.click();
+         console.log("Clicked on the '+ Add Passenger' link.");
+       } else {
+         console.error("The '+ Add Passenger' link was not found.");
+       }
 		count++;
 	}
 	count = 0;
