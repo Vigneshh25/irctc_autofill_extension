@@ -445,9 +445,9 @@ function fillPassengerDetails() {
 	const parentElement = document.querySelector("app-passenger-input");
 	let count = 1;
 	while (count < user_data["passenger_details"].length) {
-       let dPassengerLink = document.querySelector(
-         ".form-group.col-xs-12.padding.ng-tns-c83-55 .zeroPadding.pull-left.ng-star-inserted a"
-       );
+        let dPassengerLink = document.querySelector(
+            ".form-group.col-xs-12.padding .zeroPadding.pull-left.ng-star-inserted a"
+        );
        if (dPassengerLink) {
          dPassengerLink.click();
          console.log("Clicked on the '+ Add Passenger' link.");
@@ -470,9 +470,9 @@ function fillPassengerDetails() {
 
 	// passenger details
 	user_data["passenger_details"].forEach((passenger, index) => {
-		let name_input_field = passengerList[index].querySelector(
-			"p-autocomplete[formcontrolname='passengerName'] input[placeholder='Passenger Name']"
-		);
+        let name_input_field = passengerList[index]?.querySelector(
+            "input[placeholder='Name'][role='searchbox'][type='text']"
+        );
 		name_input_field.value = passenger.name;
 		name_input_field.dispatchEvent(new Event("input"));
 		let age_input_field = passengerList[index].querySelector(
